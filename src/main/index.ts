@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process';
 import {
   rmSync, existsSync, readFileSync, readdirSync, statSync, cpSync, writeFileSync,
   unlinkSync, mkdirSync, renameSync, createWriteStream, copyFileSync, lstatSync,
-  readlinkSync, symlinkSync
+  readlinkSync, symlinkSync, chmodSync
 } from 'node:fs';
 import { randomBytes, createHash, timingSafeEqual } from 'node:crypto';
 import { join, resolve, sep, basename, dirname, isAbsolute } from 'node:path';
@@ -280,6 +280,8 @@ async function enableCodexRemoteForSpawn(
 /** Live PTY id → its hive agent id, recorded at spawn. The pty:kill handler only
  *  gets the PTY id, so this lets a closed tab archive the right registry agent. */
 const ptyToAgent = new Map<string, string>();
+/** Free-win: pty id -> agent dir, so teardown can remove its .broker file. */
+const ptyBrokerDir = new Map<string, string>();
 /** PTY id → the spawn it should auto restart-and-continue into once a first-time
  *  CLI install finishes. The missing-CLI short-circuit runs the engine's installer
  *  in this PTY; when it exits cleanly the exit handler re-runs the SAME spawn (with
@@ -724,6 +726,14 @@ const liveWorkers = new Map<string, WorkerRec>();
 const integrationBroker = new IntegrationBroker({
   getRecord: integrations.getRecord,
   getSecret: integrations.getSecret,
+  // Free-win (md-secret): the secret-name catalog + read resolution, and an
+  // audit trail by agent + name (never the value).
+  listSecretNames,
+  secretRefForName,
+  onSecretRead: (workerId, name) => auditStore.record({
+    kind: 'secret-read', actor: workerId, domain: 'secret',
+    action: name, decision: 'allow', detail: 'md-secret read via broker'
+  }),
   // Phase 6 — central policy on every outbound call. One-shot desk approvals
   // (workerId:integrationId) let a human release a single held call; the next
   // one queues again (default-deny for externals).
@@ -759,6 +769,38 @@ const BACKEND_KEY_ENV: Record<string, string> = {
   groq: 'GROQ_API_KEY'
 };
 const providerKeyRef = (backend: string): string => `apikey:${backend}`;
+
+/** Free-win (md-secret): map an env-var-style NAME to its encrypted slot.
+ *  Provider keys are named by the env var their CLI reads; custom secrets use
+ *  the `custom:` prefix. Main-only — never sent to a renderer. */
+function secretRefForName(name: string): string | undefined {
+  const byEnv = Object.entries(BACKEND_KEY_ENV).find(([, env]) => env === name);
+  if (byEnv) return providerKeyRef(byEnv[0]);
+  return integrations.listCustomSecretNames().includes(name) ? integrations.customSecretRef(name) : undefined;
+}
+function listSecretNames(): Array<{ name: string; kind: 'provider' | 'custom' }> {
+  const provider = Object.values(BACKEND_KEY_ENV)
+    .filter((env) => integrations.hasSecret(providerKeyRef(Object.keys(BACKEND_KEY_ENV).find((k) => BACKEND_KEY_ENV[k] === env)!)))
+    .map((name) => ({ name, kind: 'provider' as const }));
+  const custom = integrations.listCustomSecretNames().map((name) => ({ name, kind: 'custom' as const }));
+  return [...provider, ...custom].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** Free-win (md-secret/md-share): persist the loopback broker credentials into
+ *  the agent's own dir so a stale env token (app restarted since spawn) can be
+ *  refreshed by the CLI's built-in retry. Mode 0600 on POSIX; best-effort on all. */
+function writeBrokerFile(agentDir: string | undefined, url: string | undefined, token: string | undefined): void {
+  if (!agentDir || !url || !token) return;
+  try {
+    const file = join(agentDir, '.broker');
+    writeFileSync(file, JSON.stringify({ url, token }), { mode: 0o600 });
+    try { chmodSync(file, 0o600); } catch { /* Windows: best-effort */ }
+  } catch (e) { console.error('[broker] could not write .broker:', e); }
+}
+function dropBrokerFile(agentDir: string | undefined): void {
+  if (!agentDir) return;
+  try { rmSync(join(agentDir, '.broker'), { force: true }); } catch { /* best-effort */ }
+}
 
 /** A worker worktree that teardown PRESERVED because it held unintegrated work.
  *  Tracked so the GC sweep can reclaim it (+ its scratch dir) once the work lands
@@ -805,6 +847,8 @@ function teardownPty(id: string): void {
   // 0) Revoke this id's broker capability (if any). Idempotent + harmless for a
   //    non-worker PTY; ensures a dead worker's token can never reach an integration.
   try { integrationBroker.revoke(id); } catch { /* best-effort */ }
+  // Free-win: remove this agent's broker credential file on teardown.
+  try { dropBrokerFile(ptyBrokerDir.get(id)); ptyBrokerDir.delete(id); } catch { /* best-effort */ }
   // 1) Archive the agent — retained + flagged; only live-PTY agents are active.
   const agentId = ptyToAgent.get(id);
   if (agentId) {
@@ -3559,6 +3603,18 @@ async function spawnAgentCore(opts: AgentSpawnOptions, owner: Electron.WebConten
       // Point the agent's mempalace CLI at the shared palace + the `kg` CLI at the
       // enterprise knowledge store (both no-ops / empty when their flags are off).
       opts.env = { ...(opts.env ?? {}), ...inj.env, ...memory.env(), ...knowledge.env() };
+      // Free-win: every agent gets a loopback broker capability so the bundled
+      // md-secret / md-share CLIs can call home. Ephemeral workers already carry
+      // one from the spawn-request path — reuse it; otherwise mint one here.
+      if (integrationBroker.running()) {
+        const agentId = opts.hive.id;
+        let token = opts.env.MD_BROKER_TOKEN;
+        if (!token) {
+          token = integrationBroker.grant(agentId, integrations.enabledIds());
+          opts.env = { ...opts.env, MD_BROKER_URL: integrationBroker.url(), MD_BROKER_TOKEN: token };
+        }
+        writeBrokerFile(opts.env.AGENT_DIR, opts.env.MD_BROKER_URL, token);
+      }
     } catch (e) {
       // Hive provisioning is best-effort; never block a spawn on it.
       console.error('[hive] ensureAgent failed:', e);
@@ -3699,6 +3755,7 @@ async function spawnAgentCore(opts: AgentSpawnOptions, owner: Electron.WebConten
   // live terminal means active — ensureAgent above already cleared `archived`.
   if (opts.hive?.id) {
     ptyToAgent.set(opts.id, opts.hive.id);
+    if (opts.env?.AGENT_DIR) ptyBrokerDir.set(opts.id, opts.env.AGENT_DIR);
     // Worker inbox-wake watchdog (#151): boot grace starts at spawn so the
     // initial orientation prompt is never mistaken for an idle agent.
     workerWake.noteSpawn(opts.id);
@@ -3926,6 +3983,21 @@ ipcMain.handle('integrations:remove', (_evt, payload: unknown) => {
   const p = (payload ?? {}) as { id?: unknown };
   if (typeof p.id !== 'string' || !p.id) return { ok: false, error: 'id required' };
   return integrations.removeRecord(p.id);
+});
+// ─── IPC: custom secrets (free-win md-secret) ─────────────────────────────────
+// Write-only: the renderer can list names, set/delete values, and ask whether a
+// value exists — it can never read a plaintext secret back over IPC.
+ipcMain.handle('secrets:list', () => integrations.listCustomSecretNames().map((name) => ({ name, hasValue: integrations.hasCustomSecret(name) })));
+ipcMain.handle('secrets:set', (_evt, payload: unknown) => {
+  const p = (payload ?? {}) as { name?: unknown; value?: unknown };
+  if (typeof p.name !== 'string' || !p.name) return { ok: false, error: 'name required' };
+  if (typeof p.value !== 'string' || !p.value) return { ok: false, error: 'value required' };
+  return integrations.setCustomSecret(p.name, p.value);
+});
+ipcMain.handle('secrets:delete', (_evt, name: unknown) => {
+  if (typeof name !== 'string' || !name) return { ok: false, error: 'name required' };
+  integrations.deleteCustomSecret(name);
+  return { ok: true };
 });
 // ─── IPC: per-CLI-provider BYOK keys (write-only) ────────────────────────────
 // API keys for the backend model-providers the non-Claude CLIs use are stored

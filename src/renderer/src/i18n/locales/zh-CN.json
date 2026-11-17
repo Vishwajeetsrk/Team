@@ -224,6 +224,19 @@
       "memoryKnowledge": "记忆与知识",
       "capabilities": "能力"
     },
+    "secrets": {
+      "title": "密钥与机密",
+      "help": "智能体可通过 broker 读取的命名机密（例如 GITHUB_TOKEN）。值只写不读、静态加密；智能体通过 md-secret run 使用。",
+      "stored": "已存储",
+      "empty": "无值",
+      "remove": "删除此机密",
+      "namePlaceholder": "名称，例如 GITHUB_TOKEN",
+      "valuePlaceholder": "机密值",
+      "save": "保存",
+      "badName": "使用大写字母、数字和下划线（最多 64 个）。",
+      "needValue": "请输入值。",
+      "failed": "无法保存机密。"
+    },
     "changeHome": {
       "newHome": "新的主文件夹",
       "moveTitle": "迁移现有数据（推荐）",

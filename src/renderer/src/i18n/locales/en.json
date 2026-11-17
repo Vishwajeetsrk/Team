@@ -224,6 +224,19 @@
       "memoryKnowledge": "Memory & Knowledge",
       "capabilities": "Capabilities"
     },
+    "secrets": {
+      "title": "Keys and secrets",
+      "help": "Named secrets agents can read through the broker (for example GITHUB_TOKEN). Values are write-only and encrypted at rest; agents use them with md-secret run.",
+      "stored": "stored",
+      "empty": "no value",
+      "remove": "delete this secret",
+      "namePlaceholder": "NAME e.g. GITHUB_TOKEN",
+      "valuePlaceholder": "secret value",
+      "save": "save",
+      "badName": "Use capital letters, digits and underscores (max 64).",
+      "needValue": "Enter a value.",
+      "failed": "Could not save the secret."
+    },
     "changeHome": {
       "newHome": "New home folder",
       "moveTitle": "Move existing data (recommended)",

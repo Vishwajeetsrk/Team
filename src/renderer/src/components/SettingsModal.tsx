@@ -21,6 +21,7 @@ import { OfficeThemePicker } from './OfficeThemePicker';
 import { McpDefaultsSettings } from './McpDefaultsSettings';
 import { CapabilitiesBrowser } from './CapabilitiesBrowser';
 import { IntegrationsRegistry } from './IntegrationsRegistry';
+import { CustomSecretsSettings } from './CustomSecretsSettings';
 import { AiEnginesSettings } from './AiEnginesSettings';
 import { REALTIME_MODEL } from '@shared/realtimePricing';
 import { RealtimeDevicePicker } from '@/realtime/DevicePicker';
@@ -1598,6 +1599,11 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                           Leads the section; the hardcoded Slack/Webhook/Free Flow
                           blocks below stay as-is. */}
                       <IntegrationsRegistry />
+
+                      <div style={sectionRule} />
+
+                      {/* Keys and secrets (free-win md-secret) — write-only custom secrets */}
+                      <CustomSecretsSettings />
 
                       <div style={sectionRule} />
 

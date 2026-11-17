@@ -1608,6 +1608,14 @@ const api = {
     ipcRenderer.invoke('integrations:setSecret', req),
   integrationsRemove: (req: { id: string }): Promise<{ ok: boolean }> =>
     ipcRenderer.invoke('integrations:remove', req),
+  // Custom secrets (free-win md-secret) — WRITE-ONLY. Names + a hasValue boolean
+  // only; no method returns a plaintext value to the renderer.
+  secretsList: (): Promise<Array<{ name: string; hasValue: boolean }>> =>
+    ipcRenderer.invoke('secrets:list'),
+  secretsSet: (req: { name: string; value: string }): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('secrets:set', req),
+  secretsDelete: (name: string): Promise<{ ok: boolean }> =>
+    ipcRenderer.invoke('secrets:delete', name),
   integrationsTest: (req: { id: string; path?: string }): Promise<{ ok: boolean; status?: number; error?: string }> =>
     ipcRenderer.invoke('integrations:test', req),
   // Per-CLI-provider BYOK keys — WRITE-ONLY. `providerKeySet` stores a backend key one

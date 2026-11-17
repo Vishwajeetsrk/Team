@@ -67,7 +67,17 @@ export interface IntegrationBrokerDeps {
    *  are external-by-definition; checked AFTER capability, BEFORE record/secret
    *  resolution so a denied call never decrypts anything. Optional (tests omit). */
   authorizeOutbound?: (workerId: string, integrationId: string) => { allow: boolean; reason?: string };
+  /** Free-win (md-secret): list the secret names this worker may see. Metadata only. */
+  listSecretNames?: () => Array<{ name: string; kind: 'provider' | 'custom' }>;
+  /** Free-win: resolve an UPPER_SCORED name to its encrypted-slot ref. */
+  secretRefForName?: (name: string) => string | undefined;
+  /** Free-win: audit a read by agent id + name (never the value). */
+  onSecretRead?: (workerId: string, name: string) => void;
 }
+
+/** Names md-secret accepts: capital letters, digits, underscore (mirrors the CLI). */
+const SECRET_NAME_RE = /^[A-Z0-9_]{1,64}$/;
+const VALID_SECRET_KINDS = new Set(['provider', 'custom']);
 
 /** True for IPv4 loopback (127.0.0.0/8) and IPv6 ::1 (incl. v4-mapped). Mirrors slack.ts. */
 function isLoopback(addr: string): boolean {
@@ -182,8 +192,14 @@ export class IntegrationBroker {
     const cap = this.resolveCapability(IntegrationBroker.tokenFrom(req));
     if (!cap) return IntegrationBroker.sendError(res, 401, 'unauthorized', 'missing or invalid capability token');
 
-    // 3) Parse /i/<integrationId>/<path...>.
+    // 3) Free-win: md-secret routes (before the integration proxy parse).
     const rawUrl = req.url ?? '';
+    if (rawUrl === '/secrets' || rawUrl === '/secrets/read') {
+      void this.handleSecrets(req, res, cap, rawUrl);
+      return;
+    }
+
+    // 4) Parse /i/<integrationId>/<path...>.
     const m = /^\/i\/([^/?#]+)(?:\/([^?#]*))?(\?[^#]*)?$/.exec(rawUrl);
     if (!m) return IntegrationBroker.sendError(res, 404, 'not_found', 'expected /i/<integrationId>/<path>');
     const integrationId = decodeURIComponent(m[1]);
@@ -217,6 +233,39 @@ export class IntegrationBroker {
     }
 
     void this.forward(req, res, rec, upstream, secret);
+  }
+
+  /** Free-win (md-secret): GET /secrets (names only) and POST /secrets/read {name}.
+   *  Authorized by the same per-worker capability as integration calls. The secret
+   *  value is materialized here and returned to the OWNER worker only; never logged. */
+  private async handleSecrets(req: IncomingMessage, res: ServerResponse, cap: Capability, route: string): Promise<void> {
+    if (route === '/secrets') {
+      if ((req.method ?? '').toUpperCase() !== 'GET') return IntegrationBroker.sendError(res, 405, 'method_not_allowed', 'use GET');
+      const names = (this.deps.listSecretNames?.() ?? [])
+        .filter((s) => s && SECRET_NAME_RE.test(s.name) && VALID_SECRET_KINDS.has(s.kind))
+        .map((s) => ({ name: s.name, kind: s.kind }));
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, secrets: names }));
+      return;
+    }
+    // /secrets/read
+    if ((req.method ?? '').toUpperCase() !== 'POST') return IntegrationBroker.sendError(res, 405, 'method_not_allowed', 'use POST');
+    let name: unknown;
+    try {
+      const body = JSON.parse((await readBodyCapped(req)).toString('utf8'));
+      name = body && typeof body === 'object' ? (body as { name?: unknown }).name : undefined;
+    } catch {
+      return IntegrationBroker.sendError(res, 400, 'bad_request', 'invalid JSON body');
+    }
+    if (typeof name !== 'string' || !SECRET_NAME_RE.test(name)) {
+      return IntegrationBroker.sendError(res, 400, 'bad_request', 'invalid secret name');
+    }
+    const ref = this.deps.secretRefForName?.(name);
+    const value = ref ? this.deps.getSecret(ref) : undefined;
+    if (!value) return IntegrationBroker.sendError(res, 404, 'not_found', `no key or secret named ${name} is saved`);
+    try { this.deps.onSecretRead?.(cap.workerId, name); } catch { /* audit best-effort */ }
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ ok: true, value }));
   }
 
   private async forward(

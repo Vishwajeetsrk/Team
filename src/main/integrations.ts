@@ -141,6 +141,45 @@ export function hasSecret(secretRef: string | undefined): boolean {
   return !!readSecretBlob()[secretRef];
 }
 
+/** Free-win (md-secret): custom secrets share the encrypted blob under a
+ *  `custom:<NAME>` ref. The NAME list itself is metadata in config.json so it
+ *  survives even when the value slot is absent; values stay write-only. */
+const CUSTOM_PREFIX = 'custom:';
+export const customSecretRef = (name: string): string => `${CUSTOM_PREFIX}${name}`;
+const CUSTOM_NAME_RE = /^[A-Z0-9_]{1,64}$/;
+
+/** Names of custom secrets saved in Settings (metadata only). */
+export function listCustomSecretNames(): string[] {
+  const names = readConfig().customSecretNames ?? [];
+  return names.filter((n) => typeof n === 'string' && CUSTOM_NAME_RE.test(n));
+}
+
+/** Add or replace a custom secret. Returns false for a bad name / unavailable encryption. */
+export function setCustomSecret(name: string, value: string): { ok: boolean; error?: string } {
+  if (!CUSTOM_NAME_RE.test(name)) return { ok: false, error: 'name must be capital letters, digits and underscores (max 64)' };
+  const r = setSecret(customSecretRef(name), value);
+  if (!r.ok) return r;
+  const names = listCustomSecretNames();
+  if (!names.includes(name)) {
+    const cfg = readConfig();
+    writeConfig({ ...cfg, customSecretNames: [...names, name].sort() });
+  }
+  return { ok: true };
+}
+
+/** Whether a custom secret has a stored value. */
+export function hasCustomSecret(name: string): boolean {
+  return CUSTOM_NAME_RE.test(name) && hasSecret(customSecretRef(name));
+}
+
+/** Remove a custom secret (value + metadata). Idempotent. */
+export function deleteCustomSecret(name: string): void {
+  deleteSecret(customSecretRef(name));
+  const names = listCustomSecretNames().filter((n) => n !== name);
+  const cfg = readConfig();
+  writeConfig({ ...cfg, customSecretNames: names });
+}
+
 /** Delete a stored secret. Idempotent. */
 export function deleteSecret(secretRef: string | undefined): void {
   if (!secretRef) return;

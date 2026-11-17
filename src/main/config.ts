@@ -304,6 +304,10 @@ export interface HarnessConfig {
    *  handle, never the secret value (secrets live encrypted in a separate file via
    *  Electron safeStorage — see src/main/integrations.ts). Default []. */
   integrations?: IntegrationRecord[];
+  /** Free-win (md-secret): names of custom secrets saved in Settings. METADATA ONLY —
+   *  values live encrypted in integration-secrets.json under `custom:<NAME>` (see
+   *  src/main/integrations.ts). Default []. */
+  customSecretNames?: string[];
   /** Default per-worker TOTAL-token cap (input+output+cache) applied to every
    *  god-triggered ephemeral worker; a worker's own spawn-request `tokenCap`
    *  overrides it. When the effective cap is exceeded the worker is reaped (its
