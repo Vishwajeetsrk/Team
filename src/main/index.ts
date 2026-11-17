@@ -69,6 +69,9 @@ import { analytics, isRendererMessageSurface } from './analytics';
 import type { SpawnFailReason } from './analytics';
 import { IntegrationBroker } from './integrationBroker';
 import { ShareServer } from './shareServer';
+import { loadGuardrail, saveGuardrail, enableGuardrail } from './guardrailStore';
+import type { GuardrailConfig } from '../shared/guardrail';
+import * as guardrailApprovals from './guardrailApprovals';
 import * as integrations from './integrations';
 import { validateBaseUrl, buildAuthHeaders, resolveUpstreamUrl, secretRefFor, INTEGRATION_TEMPLATES } from '../shared/integrations';
 import { RosterStore } from './roster';
@@ -506,6 +509,25 @@ const hookServer = new HookServer(
   (agentId, event, message) => workerWake.noteHook(agentId, event, message),
   policyService
 );
+// #716 opt-in guardrail — attach after construction; off when no rules file.
+// onAsk raises a pending approval the renderer shows in ASK ME; approve mints a
+// one-shot grant the next matching PreToolUse consumes (single-use, 1-hour).
+hookServer.setGuardrail({
+  config: () => loadGuardrail(readConfig().harnessHome ?? process.cwd()),
+  onLog: (agentId, rule, command) => auditStore.record({
+    kind: 'guardrail-log', actor: agentId, domain: 'guardrail',
+    action: rule, decision: 'log', detail: command.slice(0, 200)
+  }),
+  onAsk: (agentId, fingerprint, rule, command) => {
+    guardrailApprovals.addPending(agentId, fingerprint, rule, command);
+    try { liveWebContents()?.send('guardrail:ask', guardrailApprovals.listPending()); } catch { /* window gone */ }
+    auditStore.record({
+      kind: 'guardrail-ask', actor: agentId, domain: 'guardrail',
+      action: rule, decision: 'require-approval', detail: command.slice(0, 200)
+    });
+  },
+  consumeApproval: (agentId, fingerprint) => guardrailApprovals.consume(agentId, fingerprint)
+});
 const memory = new MemoryManager(
   () => readConfig().harnessHome,
   () => { const c = readConfig(); return { enabled: c.semanticMemory !== false, model: c.embeddingModel ?? 'minilm' }; }
@@ -4026,6 +4048,26 @@ ipcMain.handle('secrets:set', (_evt, payload: unknown) => {
 ipcMain.handle('secrets:delete', (_evt, name: unknown) => {
   if (typeof name !== 'string' || !name) return { ok: false, error: 'name required' };
   integrations.deleteCustomSecret(name);
+  return { ok: true };
+});
+// ─── IPC: opt-in guardrail (#716) ─────────────────────────────────────────────
+const guardrailHome = (): string => readConfig().harnessHome ?? process.cwd();
+ipcMain.handle('guardrail:get', () => loadGuardrail(guardrailHome()));
+ipcMain.handle('guardrail:save', (_evt, cfg: unknown) => saveGuardrail(guardrailHome(), cfg as GuardrailConfig));
+ipcMain.handle('guardrail:enable', () => enableGuardrail(guardrailHome()));
+ipcMain.handle('guardrail:approvals', () => guardrailApprovals.listPending());
+ipcMain.handle('guardrail:approve', (_evt, fingerprint: unknown) => {
+  if (typeof fingerprint !== 'string') return { ok: false };
+  const ok = guardrailApprovals.approvePending(fingerprint);
+  if (ok) auditStore.record({ kind: 'guardrail-decided', actor: 'user', domain: 'guardrail', action: fingerprint, decision: 'approved' });
+  try { liveWebContents()?.send('guardrail:ask', guardrailApprovals.listPending()); } catch { /* window gone */ }
+  return { ok };
+});
+ipcMain.handle('guardrail:deny', (_evt, fingerprint: unknown) => {
+  if (typeof fingerprint !== 'string') return { ok: false };
+  guardrailApprovals.denyPending(fingerprint);
+  auditStore.record({ kind: 'guardrail-decided', actor: 'user', domain: 'guardrail', action: fingerprint, decision: 'denied' });
+  try { liveWebContents()?.send('guardrail:ask', guardrailApprovals.listPending()); } catch { /* window gone */ }
   return { ok: true };
 });
 // ─── IPC: per-CLI-provider BYOK keys (write-only) ────────────────────────────

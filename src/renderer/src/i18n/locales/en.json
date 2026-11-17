@@ -237,6 +237,25 @@
       "needValue": "Enter a value.",
       "failed": "Could not save the secret."
     },
+    "guardrail": {
+      "title": "Guardrail",
+      "help": "Standing rules every agent keeps, even after compaction. With rules off, nothing is enforced or logged. A backstop can only log, ask you on a card, or block the call.",
+      "turnOn": "Turn on guardrail",
+      "turnOff": "Turn off",
+      "on": "on — rules are active",
+      "off": "off — no rules enforced",
+      "log": "log only",
+      "ask": "ask me",
+      "block": "block",
+      "add": "Add rule",
+      "remove": "Remove this rule",
+      "rulePlaceholder": "e.g. Never merge a pull request",
+      "failed": "Could not save the rules.",
+      "askTitle": "Guardrail needs approval",
+      "askRule": "Rule: {{rule}}",
+      "approveOnce": "Approve once",
+      "deny": "Deny"
+    },
     "changeHome": {
       "newHome": "New home folder",
       "moveTitle": "Move existing data (recommended)",

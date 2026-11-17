@@ -237,6 +237,25 @@
       "needValue": "请输入值。",
       "failed": "无法保存机密。"
     },
+    "guardrail": {
+      "title": "护栏",
+      "help": "每个智能体都遵守的常驻规则，压缩后依然有效。规则关闭时不执行也不记录。后备动作只能记录、在卡片上询问你，或阻止该调用。",
+      "turnOn": "开启护栏",
+      "turnOff": "关闭",
+      "on": "已开启 — 规则生效中",
+      "off": "已关闭 — 不执行任何规则",
+      "log": "仅记录",
+      "ask": "询问我",
+      "block": "阻止",
+      "add": "添加规则",
+      "remove": "删除此规则",
+      "rulePlaceholder": "例如：绝不合并拉取请求",
+      "failed": "无法保存规则。",
+      "askTitle": "护栏需要批准",
+      "askRule": "规则：{{rule}}",
+      "approveOnce": "批准一次",
+      "deny": "拒绝"
+    },
     "changeHome": {
       "newHome": "新的主文件夹",
       "moveTitle": "迁移现有数据（推荐）",

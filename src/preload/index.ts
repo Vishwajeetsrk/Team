@@ -1619,6 +1619,21 @@ const api = {
     ipcRenderer.invoke('secrets:set', req),
   secretsDelete: (name: string): Promise<{ ok: boolean }> =>
     ipcRenderer.invoke('secrets:delete', name),
+  // Opt-in guardrail (#716). Rules are full config objects; approvals are one-shot.
+  guardrailGet: (): Promise<{ enabled: boolean; rules: Array<{ id: string; sentence: string; backstop: 'log' | 'ask' | 'block'; enabled: boolean }> }> =>
+    ipcRenderer.invoke('guardrail:get'),
+  guardrailSave: (cfg: unknown): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('guardrail:save', cfg),
+  guardrailEnable: (): Promise<unknown> => ipcRenderer.invoke('guardrail:enable'),
+  guardrailApprovals: (): Promise<Array<{ fingerprint: string; agentId: string; rule: string; command: string; askedAt: number; expiresAt: number }>> =>
+    ipcRenderer.invoke('guardrail:approvals'),
+  guardrailApprove: (fingerprint: string): Promise<{ ok: boolean }> => ipcRenderer.invoke('guardrail:approve', fingerprint),
+  guardrailDeny: (fingerprint: string): Promise<{ ok: boolean }> => ipcRenderer.invoke('guardrail:deny', fingerprint),
+  onGuardrailAsk: (cb: (pending: unknown) => void): (() => void) => {
+    const listener = (_e: unknown, payload: unknown) => cb(payload);
+    ipcRenderer.on('guardrail:ask', listener as (e: Electron.IpcRendererEvent, ...args: unknown[]) => void);
+    return () => ipcRenderer.removeListener('guardrail:ask', listener as (e: Electron.IpcRendererEvent, ...args: unknown[]) => void);
+  },
   integrationsTest: (req: { id: string; path?: string }): Promise<{ ok: boolean; status?: number; error?: string }> =>
     ipcRenderer.invoke('integrations:test', req),
   // Per-CLI-provider BYOK keys — WRITE-ONLY. `providerKeySet` stores a backend key one

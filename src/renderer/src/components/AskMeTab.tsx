@@ -8,6 +8,7 @@ import { type HiveTask, type HumanQA, openQuestion, waitsOnHuman } from './Tasks
 import { compareByNewestAsk } from './askMeOrder';
 import { isComposingKey } from '@shared/imeGuard';
 import { liveApproval, type OwnerApprovalAction } from '@shared/ownerApproval';
+import { GuardrailAskCards } from './GuardrailAskCards';
 import { useRtl } from '@/i18n/useDirection';
 
 /**
@@ -233,6 +234,7 @@ export function AskMeTab() {
     // memory viewer uses. Pixelify Sans (font-ui) is too chunky for prose like
     // questions and answers. Display/badge bits keep their explicit faces.
     <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', background: 'var(--cth-paper-200)', padding: 10, display: 'flex', flexDirection: 'column', gap: 10, fontFamily: 'var(--cth-font-mono)' }}>
+      <GuardrailAskCards />
       {waiting.length === 0 && (
         <div style={{ textAlign: 'center', padding: '24px 12px', color: 'var(--cth-ink-500)', fontSize: 12 }}>
           {translate('askMe.emptyTitle')}<br />

@@ -22,6 +22,7 @@ import { McpDefaultsSettings } from './McpDefaultsSettings';
 import { CapabilitiesBrowser } from './CapabilitiesBrowser';
 import { IntegrationsRegistry } from './IntegrationsRegistry';
 import { CustomSecretsSettings } from './CustomSecretsSettings';
+import { GuardrailSettings } from './GuardrailSettings';
 import { AiEnginesSettings } from './AiEnginesSettings';
 import { REALTIME_MODEL } from '@shared/realtimePricing';
 import { RealtimeDevicePicker } from '@/realtime/DevicePicker';
@@ -1604,6 +1605,11 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
 
                       {/* Keys and secrets (free-win md-secret) — write-only custom secrets */}
                       <CustomSecretsSettings />
+
+                      <div style={sectionRule} />
+
+                      {/* Opt-in guardrail (#716) — standing rules with backstops */}
+                      <GuardrailSettings />
 
                       <div style={sectionRule} />
 

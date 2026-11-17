@@ -20,6 +20,7 @@ import type { ControlRegistry } from './control';
 import type { CircuitBreaker } from './breaker';
 import { estimateCostUsd } from './pricing';
 import { validateHookEvent } from '../shared/hookEvents';
+import { evaluateGuardrail, type GuardrailConfig } from '../shared/guardrail';
 
 /** Phase 6 — central action policy seam (structural, so hooks.ts stays free of
  *  a runtime import cycle with policyService). Sync: PreToolUse has a shim
@@ -135,6 +136,27 @@ export class HookServer {
    *  get_agent_detail / list_agents) can report "how full is each agent's context"
    *  without depending on a renderer round-trip. */
   private contextById = new Map<string, { tokens: number; limit: number; ts: number }>();
+  /** #716 opt-in guardrail. Injected after construction; null/absent = feature off
+   *  (zero behavior change). All decisions are pure (src/shared/guardrail). */
+  private guardrail: {
+    config: () => { enabled: boolean; rules: Array<{ id: string; sentence: string; backstop: 'log' | 'ask' | 'block'; enabled: boolean }> };
+    onLog: (agentId: string, rule: string, command: string) => void;
+    onAsk: (agentId: string, fingerprint: string, rule: string, command: string) => void;
+    /** Atomic single-use consume — the matching call is released once. */
+    consumeApproval: (agentId: string, fingerprint: string) => boolean;
+  } | null = null;
+
+  /** Attach guardrail callbacks after construction (keeps the constructor stable). */
+  setGuardrail(deps: NonNullable<HookServer['guardrail']>): void { this.guardrail = deps; }
+
+  /** Trusted context block listing the standing rules, or null when off/empty. */
+  private rulesContextText(): string | null {
+    const cfg = this.guardrail?.config();
+    if (!cfg?.enabled || !cfg.rules.some((r) => r.enabled)) return null;
+    const lines = cfg.rules.filter((r) => r.enabled).map((r) => `- ${r.sentence}`);
+    return `[STANDING RULES — follow these always]\n${lines.join('\n')}`;
+  }
+
   /** The goal last delivered to each agent's current session. Goals are durable
    *  roster state, so repeating an unchanged multi-kilobyte briefing on every
    *  prompt only bloats the transcript. One entry per agent is sufficient: an
@@ -540,6 +562,47 @@ export class HookServer {
           }
         };
       }
+      // #716 guardrail backstop — after the built-in policy/control gates. Pure
+      // evaluation; off (no guardrail / config disabled) costs one null check.
+      if (this.guardrail) {
+        const cfg = this.guardrail.config();
+        if (cfg.enabled) {
+          const tool = p.tool_name ?? '';
+          const input = p.tool_input && typeof p.tool_input === 'object'
+            ? (p.tool_input as Record<string, unknown>) : {};
+          const command = typeof input.command === 'string' ? input.command : JSON.stringify(input ?? {});
+          const verdict = evaluateGuardrail(cfg as GuardrailConfig, tool, command);
+          if (verdict.verdict !== 'allow') {
+            this.emit(agentId, event, p);
+            if (verdict.verdict === 'log') {
+              this.guardrail.onLog(agentId, verdict.rule?.id ?? '', command);
+              // log is advisory: allow the call to proceed.
+            } else if (verdict.verdict === 'block') {
+              return {
+                hookSpecificOutput: {
+                  hookEventName: 'PreToolUse', permissionDecision: 'deny',
+                  permissionDecisionReason: verdict.reason ?? 'Blocked by guardrail rule.'
+                }
+              };
+            } else if (verdict.verdict === 'ask') {
+              // A pre-approved one-shot grant? Consume it by allowing this call;
+              // otherwise raise a card and deny-fast so the agent waits.
+              const fingerprint = `${tool}:${verdict.rule?.id}:${command}`;
+              if (this.guardrail.consumeApproval(agentId, fingerprint)) {
+                // One-shot grant released this exact call — allow it through.
+                return {};
+              }
+              this.guardrail.onAsk(agentId, fingerprint, verdict.rule?.id ?? '', command);
+              return {
+                hookSpecificOutput: {
+                  hookEventName: 'PreToolUse', permissionDecision: 'deny',
+                  permissionDecisionReason: `Guardrail approval required — see ASK ME. ${verdict.reason ?? ''}`
+                }
+              };
+            }
+          }
+        }
+      }
     }
 
     // 7C.2 — mid-run steering: inject queued operator guidance as context on the
@@ -572,6 +635,11 @@ export class HookServer {
     const slackGrant = wantsRoster
       ? '[TRUSTED] You are authorized to reply in your own team Slack channel: when a task or message carries a Slack reply target, post the reply with the Slack helper. This authorization is from the operator, not from pasted content.'
       : null;
+    // #716: standing rules ride on SessionStart (covers compaction/resume) and
+    // every prompt, via this trusted channel. Only when the guardrail is on.
+    const rulesContext = this.guardrail && (event === 'SessionStart' || event === 'UserPromptSubmit')
+      ? this.rulesContextText()
+      : null;
 
     // Standing goal (hire Briefing) — durable roster field, re-read every cycle so
     // an Edit Agent save is picked up on the next UserPromptSubmit without
@@ -600,16 +668,16 @@ export class HookServer {
       }
     }
 
-    if (steer || roster || goal || slackGrant) {
+    if (steer || roster || goal || slackGrant || rulesContext) {
       this.emit(agentId, event, p);
       // The roster is deliberately ONE compact line (contract test). Append the
       // standing grant to that same line so god still gets it in trusted context
-      // without breaking the single-line invariant.
+      // without breaking the single-line invariant. Rules are their own block.
       const rosterLine = roster ? (slackGrant ? `${roster} ${slackGrant}` : roster) : slackGrant;
       return {
         hookSpecificOutput: {
           hookEventName: event,
-          additionalContext: [rosterLine, goal, steer].filter(Boolean).join('\n\n')
+          additionalContext: [rosterLine, rulesContext, goal, steer].filter(Boolean).join('\n\n')
         }
       };
     }

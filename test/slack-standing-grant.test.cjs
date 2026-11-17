@@ -18,7 +18,7 @@ test('the standing grant is injected via the trusted additionalContext channel',
   assert.ok(hooks.includes('slackGrant'), 'no slackGrant constant in hooks.ts');
   assert.ok(/authorized to reply in your own team Slack channel/i.test(hooks), 'grant text missing');
   assert.ok(/const rosterLine = roster \? \(slackGrant/.test(hooks), 'grant must be appended to the roster line');
-  const ctx = hooks.indexOf('additionalContext: [rosterLine, goal, steer]');
+  const ctx = hooks.indexOf('additionalContext: [rosterLine, rulesContext, goal, steer]');
   assert.ok(ctx > 0, 'roster line with grant not used in additionalContext');
 });
 
