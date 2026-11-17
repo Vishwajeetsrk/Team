@@ -602,10 +602,14 @@ export class HookServer {
 
     if (steer || roster || goal || slackGrant) {
       this.emit(agentId, event, p);
+      // The roster is deliberately ONE compact line (contract test). Append the
+      // standing grant to that same line so god still gets it in trusted context
+      // without breaking the single-line invariant.
+      const rosterLine = roster ? (slackGrant ? `${roster} ${slackGrant}` : roster) : slackGrant;
       return {
         hookSpecificOutput: {
           hookEventName: event,
-          additionalContext: [roster, slackGrant, goal, steer].filter(Boolean).join('\n\n')
+          additionalContext: [rosterLine, goal, steer].filter(Boolean).join('\n\n')
         }
       };
     }

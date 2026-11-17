@@ -17,9 +17,9 @@ const hooks = fs.readFileSync(path.join(root, 'src/main/hooks.ts'), 'utf8');
 test('the standing grant is injected via the trusted additionalContext channel', () => {
   assert.ok(hooks.includes('slackGrant'), 'no slackGrant constant in hooks.ts');
   assert.ok(/authorized to reply in your own team Slack channel/i.test(hooks), 'grant text missing');
-  const ctx = hooks.indexOf('additionalContext: [roster, slackGrant, goal, steer]');
-  assert.ok(ctx > 0, 'grant not included in additionalContext');
-  assert.ok(hooks.indexOf('slackGrant') < ctx, 'grant defined after its use');
+  assert.ok(/const rosterLine = roster \? \(slackGrant/.test(hooks), 'grant must be appended to the roster line');
+  const ctx = hooks.indexOf('additionalContext: [rosterLine, goal, steer]');
+  assert.ok(ctx > 0, 'roster line with grant not used in additionalContext');
 });
 
 test('the grant is god-only and keyed off the trusted isGod check', () => {
