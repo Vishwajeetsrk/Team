@@ -641,6 +641,9 @@ const api = {
     hasOutput: boolean;
   }>> =>
     ipcRenderer.invoke('pty:list'),
+  /** PRD-10: bounded tail snapshot for submit-proof (read-only). */
+  ptyTail: (id: string): Promise<{ ok: boolean; tail: string }> =>
+    ipcRenderer.invoke('pty:tail', id),
   /** Resolve a Claude session id to the cwd it originally ran in (Add Agent
    *  resume auto-fill), or null if the id is invalid/unknown. */
   resolveSessionCwd: (sessionId: string): Promise<string | null> =>

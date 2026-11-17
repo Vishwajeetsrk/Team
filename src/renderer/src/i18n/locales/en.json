@@ -1513,6 +1513,7 @@
     "heldPicker": "held — a slash-command picker is open in {{name}}'s terminal",
     "heldExited": "held — {{name}}'s terminal has exited",
     "sendingOneByOne": "sending to {{name}} one-by-one…",
+    "needsManualEnter": "{{name}}'s prompt needs a manual Enter — click its terminal and press Return",
     "pausedTitle": "Auto-delivery is paused for the whole floor. Resume it in the Command Center, or use \"send now\" on a message below.",
     "dropToAttach": "DROP TO ATTACH",
     "queue": "QUEUE",

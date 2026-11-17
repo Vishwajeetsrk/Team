@@ -1513,6 +1513,7 @@
     "heldPicker": "暂挂——{{name}} 的终端里有一个斜杠命令选择器开着",
     "heldExited": "暂挂——{{name}} 的终端已退出",
     "sendingOneByOne": "正在逐条发送给 {{name}}…",
+    "needsManualEnter": "{{name}} 的输入框需要手动按 Enter — 点击其终端并按回车",
     "pausedTitle": "整个楼层的自动投递已暂停。在命令中心恢复，或对下面的消息使用「立即发送」。",
     "dropToAttach": "拖放以附加",
     "queue": "队列",

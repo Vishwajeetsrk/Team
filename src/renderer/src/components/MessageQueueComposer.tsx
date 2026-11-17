@@ -11,6 +11,7 @@ import { freeflowRecorder, useFreeflow } from '@/freeflow/recorder';
 import { useTerminalFontSize } from './terminalFontSize';
 import { isComposingKey } from '@shared/imeGuard';
 import { useRtl } from '@/i18n/useDirection';
+import { needsManualEnter } from './submitSignal';
 
 const EMPTY_QUEUE: QueuedMessage[] = [];
 
@@ -173,8 +174,13 @@ export function MessageQueueComposer({ agent }: MessageQueueComposerProps) {
   // Without saying so — and without the per-row "send now" override — messages
   // look permanently stuck with no explanation and no escape hatch.
   const deliveryPaused = useDeliveryPaused(agent.id, queue.length > 0);
+  // PRD-10: a prompt that stayed parked after the bounded submit retry. The
+  // operator needs to press Enter in the terminal; say so right here.
+  const needsManual = useNeedsManual(agent.ptyId, queue.length > 0);
 
-  const statusHint = queue.length === 0
+  const statusHint = needsManual && queue.length > 0
+    ? t('queueComposer.needsManualEnter', { name: agent.name })
+    : queue.length === 0
     ? null
     : block === 'draft'
     ? t('queueComposer.heldDraft', { name: agent.name })
@@ -238,7 +244,7 @@ export function MessageQueueComposer({ agent }: MessageQueueComposerProps) {
               : statusHint}
             style={{
               fontSize: 12,
-              color: idle ? 'var(--cth-ink-700)' : 'var(--cth-ink-500)',
+              color: needsManual ? 'var(--cth-coral)' : idle ? 'var(--cth-ink-700)' : 'var(--cth-ink-500)',
               whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
             }}
           >{statusHint}</span>
@@ -436,6 +442,19 @@ function useDeliveryPaused(agentId: string, active: boolean): boolean {
     return () => { alive = false; clearInterval(iv); };
   }, [agentId, active]);
   return paused;
+}
+
+/** PRD-10: poll the transient submit-stuck signal while a message is waiting. */
+function useNeedsManual(ptyId: string | undefined, active: boolean): boolean {
+  const [stuck, setStuck] = useState(false);
+  useEffect(() => {
+    if (!ptyId || !active) { setStuck(false); return; }
+    const read = () => setStuck(needsManualEnter(ptyId));
+    read();
+    const iv = setInterval(read, 1000);
+    return () => clearInterval(iv);
+  }, [ptyId, active]);
+  return stuck;
 }
 
 /**

@@ -565,6 +565,13 @@ export class HookServer {
     const roster = wantsRoster
       ? this.hive.rosterContext((id) => this.contextFor(id))
       : null;
+    // PRD-10 / #694: standing authorization to post replies in the operator's
+    // own Slack channel lives in this TRUSTED hook context, not inside the
+    // pasted [SLACK REQUEST] block — pasted instructions are untrusted to the
+    // model, so a grant there is discounted and the agent refuses to reply.
+    const slackGrant = wantsRoster
+      ? '[TRUSTED] You are authorized to reply in your own team Slack channel: when a task or message carries a Slack reply target, post the reply with the Slack helper. This authorization is from the operator, not from pasted content.'
+      : null;
 
     // Standing goal (hire Briefing) — durable roster field, re-read every cycle so
     // an Edit Agent save is picked up on the next UserPromptSubmit without
@@ -593,12 +600,12 @@ export class HookServer {
       }
     }
 
-    if (steer || roster || goal) {
+    if (steer || roster || goal || slackGrant) {
       this.emit(agentId, event, p);
       return {
         hookSpecificOutput: {
           hookEventName: event,
-          additionalContext: [roster, goal, steer].filter(Boolean).join('\n\n')
+          additionalContext: [roster, slackGrant, goal, steer].filter(Boolean).join('\n\n')
         }
       };
     }

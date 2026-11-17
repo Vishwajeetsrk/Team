@@ -3892,6 +3892,14 @@ ipcMain.handle('pty:write', (_evt, id: string, data: string) => {
   }
   return ptyManager.write(id, data);
 });
+// PRD-10 / #695: a bounded tail snapshot so the renderer can confirm a paste
+// actually submitted (a real submit emits new turn output; a swallowed Enter
+// does not). Read-only — never writes, never returns a secret.
+ipcMain.handle('pty:tail', (_evt, id: string) => {
+  if (typeof id !== 'string') return { ok: false, tail: '' };
+  const tail = ptyManager.tail(id);
+  return tail === undefined ? { ok: false, tail: '' } : { ok: true, tail };
+});
 ipcMain.handle('pty:resize', (_evt, id: string, cols: number, rows: number) => {
   if (typeof id !== 'string' || typeof cols !== 'number' || typeof rows !== 'number') return { ok: false, error: 'invalid args' };
   return ptyManager.resize(id, cols, rows);

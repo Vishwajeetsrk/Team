@@ -21,6 +21,8 @@ import { bridgeOf, providerPreset } from '../../../shared/agentProvider';
 import { isDurableRole, preferredAgentRole, roleForHiveSpawn } from '../../../shared/agentRole';
 import { inboxNudgeText } from '../../../shared/hiveNudge';
 import { resolveGodName } from '../../../shared/godIdentity';
+import { classifySubmitEvidence, shouldRetry } from '../../../shared/submitProof';
+import { markNeedsManual, clearNeedsManual } from '@/components/submitSignal';
 import { acquireTerminal, resetTerminal, isTerminalAutomationSafe } from '@/components/terminalPool';
 import { canDeliverToAgent, deliverWithAcknowledgement, checkPrecondition } from './queueDelivery';
 import { OFFICE_CAST, DEFAULT_CHARACTER } from '@/scene/office/cast';
@@ -148,10 +150,28 @@ function submitToPty(
     // immune (the prev.catch above absorbs it for the next writer).
     const wrote = await window.cth.writePty(ptyId, payload);
     if (!wrote?.ok) throw new Error(wrote?.error ?? `pty write failed: ${ptyId}`);
+    // PRD-10 / #695: snapshot the tail AFTER the paste but BEFORE Enter. A real
+    // submit erases the input line and starts a new turn (new output bytes); a
+    // swallowed Enter leaves the pasted text parked with no turn output.
+    const beforeTail = (await window.cth.ptyTail(ptyId).catch(() => null))?.tail;
     await new Promise((r) => setTimeout(r, 140));
     const submitted = await window.cth.writePty(ptyId, '\r');
     if (!submitted?.ok) throw new Error(submitted?.error ?? `pty write failed: ${ptyId}`);
     await new Promise((r) => setTimeout(r, settleMs));
+    const afterTail = (await window.cth.ptyTail(ptyId).catch(() => null))?.tail;
+    let evidence = classifySubmitEvidence(beforeTail, afterTail);
+    // One bounded retry with a plain Enter (the sequence that succeeded in the
+    // issue logs). Never re-paste — a duplicate turn is worse than a rare stuck one.
+    if (shouldRetry(evidence, 0)) {
+      await window.cth.writePty(ptyId, '\r');
+      await new Promise((r) => setTimeout(r, settleMs));
+      const retryTail = (await window.cth.ptyTail(ptyId).catch(() => null))?.tail;
+      evidence = classifySubmitEvidence(afterTail, retryTail);
+    }
+    // Surface a persistent stuck prompt in the QUEUE row so the operator knows
+    // to press Enter; a confirmed submit clears any older flag.
+    if (evidence === 'stuck') markNeedsManual(ptyId);
+    else clearNeedsManual(ptyId);
   });
   writeChains.set(ptyId, next);
   return next;

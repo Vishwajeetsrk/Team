@@ -801,6 +801,11 @@ export class PtyManager {
     return this.sessions.get(id)?.lastOutputAt;
   }
 
+  /** PRD-10: bounded tail snapshot for submit-proof. Read-only, never logged. */
+  tail(id: string): string | undefined {
+    return this.sessions.get(id)?.tail;
+  }
+
   /** Milliseconds since this PTY last produced output (Date.now() - lastOutputAt),
    *  or undefined if no such PTY. The idle handshake: large value = safe to type. */
   idleFor(id: string): number | undefined {
