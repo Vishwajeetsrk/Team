@@ -24,6 +24,7 @@
  * Contract: hive/docs/integrations-spec.md.
  */
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
+import type { ShareServer } from './shareServer';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { Readable } from 'node:stream';
 import {
@@ -73,6 +74,8 @@ export interface IntegrationBrokerDeps {
   secretRefForName?: (name: string) => string | undefined;
   /** Free-win: audit a read by agent id + name (never the value). */
   onSecretRead?: (workerId: string, name: string) => void;
+  /** Free-win (md-share): the share server that owns /share* routes on this port. */
+  shareServer?: ShareServer;
 }
 
 /** Names md-secret accepts: capital letters, digits, underscore (mirrors the CLI). */
@@ -148,6 +151,15 @@ export class IntegrationBroker {
     return token;
   }
 
+  /** Attach the share server after construction (avoids a declaration-order TDZ). */
+  setShareServer(server: ShareServer): void { (this.deps as { shareServer?: ShareServer }).shareServer = server; }
+
+  /** Free-win (md-share): which worker owns this capability token? Used by the
+   *  share server to scope links to their own workspace. Never a secret. */
+  workerForToken(token: string | undefined): string | undefined {
+    return this.resolveCapability(token)?.workerId;
+  }
+
   /** Revoke a worker's capability (called on teardown). Idempotent. */
   revoke(workerId: string): void {
     const token = this.byWorker.get(workerId);
@@ -192,10 +204,14 @@ export class IntegrationBroker {
     const cap = this.resolveCapability(IntegrationBroker.tokenFrom(req));
     if (!cap) return IntegrationBroker.sendError(res, 401, 'unauthorized', 'missing or invalid capability token');
 
-    // 3) Free-win: md-secret routes (before the integration proxy parse).
+    // 3) Free-win: md-secret + md-share routes (before the integration proxy parse).
     const rawUrl = req.url ?? '';
     if (rawUrl === '/secrets' || rawUrl === '/secrets/read') {
       void this.handleSecrets(req, res, cap, rawUrl);
+      return;
+    }
+    if (this.deps.shareServer && (rawUrl === '/share' || rawUrl === '/share/list' || rawUrl === '/share/stop')) {
+      void this.deps.shareServer.handleRequest(req, res);
       return;
     }
 

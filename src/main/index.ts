@@ -68,6 +68,7 @@ import { TokenPeriodLedger } from './tokenPeriods';
 import { analytics, isRendererMessageSurface } from './analytics';
 import type { SpawnFailReason } from './analytics';
 import { IntegrationBroker } from './integrationBroker';
+import { ShareServer } from './shareServer';
 import * as integrations from './integrations';
 import { validateBaseUrl, buildAuthHeaders, resolveUpstreamUrl, secretRefFor, INTEGRATION_TEMPLATES } from '../shared/integrations';
 import { RosterStore } from './roster';
@@ -756,6 +757,26 @@ const integrationBroker = new IntegrationBroker({
     };
   }
 });
+
+/** Free-win (md-share): ephemeral link server. Option B — its own lazily-opened
+ *  tunnelmole session, opened on the first /share and isolated from the webhook
+ *  tunnel. `tunnelmole` is ESM-only, so it is dynamically imported (like webhook.ts). */
+const shareServer = new ShareServer({
+  workerForToken: (t) => integrationBroker.workerForToken(t),
+  workspaceRootFor: (agentId) => hive.registry().agents[agentId]?.cwd,
+  openTunnel: async (port) => {
+    const { tunnelmole } = await import('tunnelmole');
+    const url = await Promise.race([
+      tunnelmole({ port }),
+      new Promise<string>((_, rej) => setTimeout(() => rej(new Error('tunnel timed out')), 30_000))
+    ]);
+    return url;
+  }
+});
+
+// The share server serves /share* on the broker's loopback port — the md-* CLIs
+// all read MD_BROKER_URL, so it must be the same address.
+integrationBroker.setShareServer(shareServer);
 
 /** BYOK backend model-providers whose API keys the non-Claude CLI engines
  *  (OpenCode/Crush/pi/qwen) read from standard env vars. Keys are stored
@@ -4213,6 +4234,7 @@ ipcMain.handle('config:changeHome', async (_evt, payload: unknown) => {
   try { stopWebhookDoneObserver(); } catch (e) { console.error('[changeHome] stopWebhookDoneObserver:', e); }
   try { stopEphemeralWorkerWatcher(); } catch (e) { console.error('[changeHome] stopWorkerWatcher:', e); }
   try { integrationBroker.stop(); } catch (e) { console.error('[changeHome] broker.stop:', e); }
+  try { shareServer.stop(); } catch {}
   try { hive.stopRouter(); } catch (e) { console.error('[changeHome] stopRouter:', e); }
   try { hookServer.stop(); } catch (e) { console.error('[changeHome] hookServer.stop:', e); }
   try { stopSlackServer(); } catch (e) { console.error('[changeHome] slack.stop:', e); }
@@ -4820,6 +4842,7 @@ function teardownAndQuit(): void {
   try { stopWebhookDoneObserver(); } catch (e) { console.error('[quit] stopWebhookDoneObserver:', e); }
   try { stopEphemeralWorkerWatcher(); } catch (e) { console.error('[quit] stopWorkerWatcher:', e); }
   try { integrationBroker.stop(); } catch (e) { console.error('[quit] broker.stop:', e); }
+  try { shareServer.stop(); } catch {}
   try { hive.stopRouter(); } catch (e) { console.error('[quit] stopRouter:', e); }
   try { hookServer.stop(); } catch (e) { console.error('[quit] hookServer.stop:', e); }
   try { telemetry.stop(); } catch (e) { console.error('[quit] telemetry.stop:', e); }
@@ -5326,6 +5349,7 @@ ipcMain.handle('app:resetAll', () => {
   try { stopWebhookDoneObserver(); } catch (e) { console.error('[reset] stopWebhookDoneObserver:', e); }
   try { stopEphemeralWorkerWatcher(); } catch (e) { console.error('[reset] stopWorkerWatcher:', e); }
   try { integrationBroker.stop(); } catch (e) { console.error('[reset] broker.stop:', e); }
+  try { shareServer.stop(); } catch {}
   try { hive.stopRouter(); } catch (e) { console.error('[reset] stopRouter:', e); }
   try { hookServer.stop(); } catch (e) { console.error('[reset] hookServer.stop:', e); }
   try { telemetry.stop(); } catch (e) { console.error('[reset] telemetry.stop:', e); }
@@ -6896,6 +6920,11 @@ function bootstrapHiveServices(): void {
   void integrationBroker.start().then((r) => {
     if (r.ok) console.log('[broker] integration broker listening on', integrationBroker.url());
     else console.error('[broker] failed to start:', r.error);
+  });
+  // Free-win: the share server binds eagerly (cheap loopback); its tunnel opens
+  // lazily on the first /share, so no external surface exists until a share is made.
+  void shareServer.start().then((r) => {
+    if (!r.ok) console.error('[share] failed to start:', r.error);
   });
   ensureDefaultMissions(); // one-time: seed the built-in hourly ops standup
   syncMissions(); // arm recurring auto-dispatch missions now the router is live
