@@ -72,6 +72,7 @@ import { ShareServer } from './shareServer';
 import { loadGuardrail, saveGuardrail, enableGuardrail } from './guardrailStore';
 import type { GuardrailConfig } from '../shared/guardrail';
 import * as guardrailApprovals from './guardrailApprovals';
+import { FailoverEventBus, type FailoverEvent } from '../shared/failoverEvents';
 import * as integrations from './integrations';
 import { validateBaseUrl, buildAuthHeaders, resolveUpstreamUrl, secretRefFor, INTEGRATION_TEMPLATES } from '../shared/integrations';
 import { RosterStore } from './roster';
@@ -800,6 +801,12 @@ const shareServer = new ShareServer({
 // all read MD_BROKER_URL, so it must be the same address.
 integrationBroker.setShareServer(shareServer);
 
+/** #731 (Option B): read-only lifecycle event stream with per-agent generation.
+ *  Diagnostics only — no restart control, no seed authority. Fan out to any
+ *  renderer that is open; the stream is also readable over IPC after reload. */
+const failoverEvents = new FailoverEventBus();
+failoverEvents.subscribe((e) => { try { liveWebContents()?.send('failover:event', e); } catch { /* window gone */ } });
+
 /** BYOK backend model-providers whose API keys the non-Claude CLI engines
  *  (OpenCode/Crush/pi/qwen) read from standard env vars. Keys are stored
  *  WRITE-ONLY in the same encrypted secret broker as integrations, under
@@ -1050,6 +1057,26 @@ ptyManager.setExitHandler((id, exitCode, info) => {
       });
     }
   } catch (e) { console.error('[pty] recordAgentExit failed:', e); }
+
+  // #731: emit a correlated exit/failure event with this agent's current
+  // generation. Read-only diagnostics — no restart or recovery is triggered.
+  try {
+    const agentId = ptyToAgent.get(id);
+    if (agentId) {
+      const gen = failoverEvents.generationOf(agentId);
+      if (gen > 0) {
+        const provider = inferAgentProvider(info?.command ?? '', hive.registry().agents[agentId]?.provider);
+        const abnormal = exitCode !== 0;
+        failoverEvents.emit({
+          generation: gen, agentId,
+          kind: abnormal ? 'failed' : 'exited',
+          provider, exitCode,
+          reason: abnormal ? `exit ${exitCode}${info?.signal ? ` (${info.signal})` : ''}` : undefined,
+          at: Date.now()
+        });
+      }
+    }
+  } catch (e) { console.error('[failover] exit event failed:', e); }
 
   // AI Company OS (Phase 3): a dead PTY blocks that agent's ACTIVE goal tasks
   // (sessionState → offline, honest reason with the exit code). Install PTYs
@@ -3888,7 +3915,15 @@ async function spawnAgentCore(opts: AgentSpawnOptions, owner: Electron.WebConten
   if (provider === 'codex' && opts.hive?.id) {
     await enableCodexRemoteForSpawn(opts, opts.hive.id);
   }
+  // #731: claim this agent's generation BEFORE spawn so every later event can be
+  // correlated to this exact launch (a stale exit from an older gen is ignored).
+  const failoverGen = opts.hive?.id ? failoverEvents.claim(opts.hive.id) : 0;
   const res = ptyManager.spawn(opts, owner);
+  if (failoverGen > 0 && opts.hive?.id) {
+    failoverEvents.emit(res.ok
+      ? { generation: failoverGen, agentId: opts.hive.id, kind: 'spawned', provider, at: Date.now() }
+      : { generation: failoverGen, agentId: opts.hive.id, kind: 'failed', provider, reason: spawnFailReason(res.error), at: Date.now() });
+  }
   if (res.ok) analytics.track('agent_spawned', { provider });
   else analytics.track('agent_spawn_failed', { provider, reason: spawnFailReason(res.error) });
   syncKeepAwake(); // arm the power-save blocker while ≥1 agent PTY is alive (#18)
@@ -4070,6 +4105,10 @@ ipcMain.handle('guardrail:deny', (_evt, fingerprint: unknown) => {
   try { liveWebContents()?.send('guardrail:ask', guardrailApprovals.listPending()); } catch { /* window gone */ }
   return { ok: true };
 });
+// ─── IPC: read-only failover lifecycle stream (#731 Option B) ───────────────
+ipcMain.handle('failover:events', () => failoverEvents.list());
+ipcMain.handle('failover:generation', (_evt, agentId: unknown) =>
+  typeof agentId === 'string' ? failoverEvents.generationOf(agentId) : 0);
 // ─── IPC: per-CLI-provider BYOK keys (write-only) ────────────────────────────
 // API keys for the backend model-providers the non-Claude CLIs use are stored
 // WRITE-ONLY under `apikey:<backend>` in the same encrypted broker. The renderer

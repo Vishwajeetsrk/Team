@@ -1629,6 +1629,15 @@ const api = {
     ipcRenderer.invoke('guardrail:approvals'),
   guardrailApprove: (fingerprint: string): Promise<{ ok: boolean }> => ipcRenderer.invoke('guardrail:approve', fingerprint),
   guardrailDeny: (fingerprint: string): Promise<{ ok: boolean }> => ipcRenderer.invoke('guardrail:deny', fingerprint),
+  // #731 (Option B): read-only lifecycle stream. No restart/seed/spend authority.
+  failoverEvents: (): Promise<Array<{ generation: number; agentId: string; kind: 'spawned' | 'exited' | 'failed'; provider: string; exitCode?: number; reason?: string; at: number }>> =>
+    ipcRenderer.invoke('failover:events'),
+  failoverGeneration: (agentId: string): Promise<number> => ipcRenderer.invoke('failover:generation', agentId),
+  onFailoverEvent: (cb: (e: unknown) => void): (() => void) => {
+    const listener = (_e: unknown, payload: unknown) => cb(payload);
+    ipcRenderer.on('failover:event', listener as (e: Electron.IpcRendererEvent, ...args: unknown[]) => void);
+    return () => ipcRenderer.removeListener('failover:event', listener as (e: Electron.IpcRendererEvent, ...args: unknown[]) => void);
+  },
   onGuardrailAsk: (cb: (pending: unknown) => void): (() => void) => {
     const listener = (_e: unknown, payload: unknown) => cb(payload);
     ipcRenderer.on('guardrail:ask', listener as (e: Electron.IpcRendererEvent, ...args: unknown[]) => void);
