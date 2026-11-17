@@ -75,6 +75,11 @@ extraResources:
   # repo resources/skills). Directory copy preserves the <id>/SKILL.md tree.
   - from: resources/skills
     to: skills
+  # md-secret / md-share agent CLIs (free-wins)
+  - from: resources/md-secret.cjs
+    to: md-secret.cjs
+  - from: resources/md-share.cjs
+    to: md-share.cjs
 
 asarUnpack:
   - "**/node_modules/node-pty/**"
