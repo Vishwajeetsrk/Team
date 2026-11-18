@@ -27,10 +27,14 @@ export function findPath(map: Walkable, start: Point, goal: Point): Point[] | nu
   const visited = new Set<string>();
   const parent = new Map<string, Point>();
   const queue: Point[] = [start];
+  // Index pointer instead of shift() — shift() is O(n) on a JS array, which made
+  // this BFS O(n²) on every repath (agents repath as they walk). Same traversal
+  // order, now O(n).
+  let head = 0;
   visited.add(key(start));
 
-  while (queue.length > 0) {
-    const current = queue.shift()!;
+  while (head < queue.length) {
+    const current = queue[head++];
 
     for (const dir of DIRECTIONS) {
       const next: Point = { x: current.x + dir.x, y: current.y + dir.y };
@@ -58,9 +62,11 @@ function reconstructPath(parent: Map<string, Point>, start: Point, goal: Point):
   const key = (p: Point) => `${p.x},${p.y}`;
 
   while (!(current.x === start.x && current.y === start.y)) {
-    path.unshift(current);
+    // push + reverse instead of unshift (also O(n) per element → O(n²)).
+    path.push(current);
     current = parent.get(key(current))!;
   }
 
+  path.reverse();
   return path;
 }
