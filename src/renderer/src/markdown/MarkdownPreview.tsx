@@ -75,21 +75,28 @@ export const MarkdownPreview = memo(function MarkdownPreview({
         components={{
           a: ({ href, children }) => {
             const h = href ?? '';
+            const isLocalDoc = /\.(html?|png|jpe?g|gif|webp|svg|pdf|txt|json)(#.*)?$/i.test(h) || h.startsWith('file://');
             const onClick = (e: React.MouseEvent) => {
               e.preventDefault();
               if (isExternal(h)) { void window.cth.openExternal?.(h); return; }
               if (isRelativeMd(h) && onOpenMarkdownLink) {
                 onOpenMarkdownLink(resolveRel(baseRel, h.replace(/#.*$/, '')));
+                return;
               }
-              // anything else (file:, anchors into self, unknown schemes): inert
+              // Issue #778: clickable links to agent files (.md, .html, images, local files)
+              if (isLocalDoc) {
+                const clean = h.replace(/^file:\/\//, '').replace(/#.*$/, '');
+                void window.cth.revealPath?.(clean);
+                return;
+              }
             };
-            const clickable = isExternal(h) || (isRelativeMd(h) && !!onOpenMarkdownLink);
+            const clickable = isExternal(h) || (isRelativeMd(h) && !!onOpenMarkdownLink) || isLocalDoc;
             return (
               <a
                 href={h || undefined}
                 onClick={onClick}
                 title={h}
-                style={clickable ? undefined : { cursor: 'default', textDecoration: 'underline dotted' }}
+                style={clickable ? { cursor: 'pointer', color: 'var(--cth-sky)' } : { cursor: 'default', textDecoration: 'underline dotted' }}
               >
                 {children}
               </a>
