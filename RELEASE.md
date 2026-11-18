@@ -1,24 +1,24 @@
-# Vishwajeet Team v0.6.0 [AI Company]
+# Vishwajeet Team v0.7.0 [AI Company]
 
 **A local hive of Claude Code, Antigravity, Codex, Gemini, Cursor, Grok & Copilot agents that run themselves.**
 Messaging, routing, and remembering, coordinated by your orchestrator, who you talk to. Local-first and 100% free open source.
 
-### → [**Vishwajeet Team on GitHub**](https://github.com/Vishwajeetsrk/Vishwajeet-Team)
+### → [**Vishwajeet Team on GitHub**](https://github.com/Vishwajeetsrk/Team)
 
 ---
 
-## What's new in 0.6.0
+## What's new in 0.7.0
 
-**Agent Computer Mode, owner approvals, and local-first sovereignty.** This release introduces dedicated virtual computer monitors for every agent, on-device Whisper voice dictation via the Stapler companion, one-click owner approvals, and zero-cloud-egress sandboxing.
+**Secrets, sharing, a guardrail, and failover diagnostics — all local-first.** This release adds bundled agent CLIs for using saved secrets and one-time file links, an opt-in guardrail with standing rules, reliable prompt submission, and a read-only failover event stream.
 
-- **Agent Computer HUD & Live Canvas:** Watch your agents type in bash, navigate documentation in Chromium, and move their cursors with real-time thought and action badges.
-- **Interactive Human Takeover:** Click `[↗ Open desktop]` anytime to take over keyboard and mouse control, unstick loops or fix errors, and seamlessly hand control back to the agent.
-- **Sleep & Wake Power Lifecycle:** Click `[☾ Sleep]` to freeze agent memory and terminal processes to local SQLite, and `[⚡ Wake]` to resume instantly.
-- **Stapler Floating Companion:** An animated companion with physics-based eye tracking, mood expressions, and local Whisper push-to-talk voice dictation without audio cloud egress.
-- **Approve and deliver, from the card.** An orchestrator can attach a frozen sentence — one target agent, one line, an expiry — to an ASK ME card. You see the exact text, the target, whether Enter is pressed, and when it expires, then click once to have the app type it straight into that agent's own session. No orchestrator relay, no copy-paste. Delivered once, stamped on the card, and a failure stays visible instead of silently retrying. (#713)
-- **OpenCode models stop crashing on spawn.** Settings-delivered models are plumbed through every spawn path the same way Claude's are — god, revive, new agent, command center, and team restore — instead of only some of them. A model that OpenCode reads from config is no longer also forced onto a flag that doesn't exist for it. (#703)
-- **Windows: installing Grok hooks no longer mangles the command.** On Windows the hook installer now invokes through the shell correctly, so `grok` resolves instead of failing to launch. (#749)
-- **No more stale "pre-release" or "Pro · Team" tier wording.** The README badge, the hero copy, and the landing page now say **Pricing: 100% Free** and **Status: stable**, matching what actually ships — one free product, no plans.
+- **Use saved secrets from any agent.** `md-secret list/run/get` pulls provider keys and your custom secrets from the app's encrypted store, so a key added after an agent started works at once — no restart, no key shown on screen. Manage names in Settings → Connections → Keys and secrets.
+- **Share a page or file on a one-time link.** `md-share page|file` creates a password-protected, expiring link to something in the agent's own workspace, through a lazily-opened local tunnel. Files work once; pages can be one-time or time-boxed.
+- **Opt-in guardrail (#716).** Standing rules every agent keeps even after compaction. Each rule can log, ask you on an ASK ME card, or block the tool call. Approvals are one-shot and expire in an hour. Off by default — with no rules, nothing changes.
+- **More reliable prompt delivery (#695).** Submitted prompts are now confirmed against the terminal's response, with one bounded Enter retry and a "needs manual Enter" cue if the TUI still parks the text.
+- **Slack replies from pasted prompts (#694).** The standing authorization to reply lives in trusted context, so the orchestrator no longer refuses to post a reply that arrived as a paste.
+- **Failover diagnostics (#731).** A read-only lifecycle event stream with per-agent generation correlation, so a supervisor can tell a real restart from a stale event.
+- **Faster office floor.** Pathfinding is now O(n) instead of O(n²) — agents repathing as they walk cost far less.
+- **Before this release** (v0.6.0): one-click owner approvals delivered from the card (#713), OpenCode model delivery fixed (#703), and Windows grok-hooks install fixed (#749).
 
 ### 100% Free
 
@@ -28,26 +28,26 @@ Messaging, routing, and remembering, coordinated by your orchestrator, who you t
 
 ## ⤓ Downloads
 
-Latest builds for every platform from [Releases](https://github.com/Vishwajeetsrk/Vishwajeet-Team/releases):
+Latest builds for every platform from [Releases](https://github.com/Vishwajeetsrk/Team/releases):
 
 ### 🍎 macOS
 | Build | File |
 |---|---|
-| Universal (Apple Silicon + Intel) | [`Vishwajeet-Team-0.6.0-mac-universal.dmg`](https://github.com/Vishwajeetsrk/Vishwajeet-Team/releases/latest/download/Vishwajeet-Team-0.6.0-mac-universal.dmg) |
+| Universal (Apple Silicon + Intel) | [`Vishwajeet-Team-0.7.0-mac-universal.dmg`](https://github.com/Vishwajeetsrk/Team/releases/latest/download/Vishwajeet-Team-0.7.0-mac-universal.dmg) |
 
 ### 🪟 Windows
 | Build | File |
 |---|---|
-| Installer (x64), *recommended* | [`Vishwajeet-Team-0.6.0-win-x64-setup.exe`](https://github.com/Vishwajeetsrk/Vishwajeet-Team/releases/latest/download/Vishwajeet-Team-0.6.0-win-x64-setup.exe) |
-| Portable (x64, no install) | [`Vishwajeet-Team-0.6.0-win-x64-portable.exe`](https://github.com/Vishwajeetsrk/Vishwajeet-Team/releases/latest/download/Vishwajeet-Team-0.6.0-win-x64-portable.exe) |
+| Installer (x64), *recommended* | [`Vishwajeet-Team-0.7.0-win-x64-setup.exe`](https://github.com/Vishwajeetsrk/Team/releases/latest/download/Vishwajeet-Team-0.7.0-win-x64-setup.exe) |
+| Portable (x64, no install) | [`Vishwajeet-Team-0.7.0-win-x64-portable.exe`](https://github.com/Vishwajeetsrk/Team/releases/latest/download/Vishwajeet-Team-0.7.0-win-x64-portable.exe) |
 
 ### 🐧 Linux
 | Build | File |
 |---|---|
-| AppImage (x86_64) | [`Vishwajeet-Team-0.6.0-linux-x86_64.AppImage`](https://github.com/Vishwajeetsrk/Vishwajeet-Team/releases/latest/download/Vishwajeet-Team-0.6.0-linux-x86_64.AppImage) |
+| AppImage (x86_64) | [`Vishwajeet-Team-0.7.0-linux-x86_64.AppImage`](https://github.com/Vishwajeetsrk/Team/releases/latest/download/Vishwajeet-Team-0.7.0-linux-x86_64.AppImage) |
 
 ### 📦 Source
-[Source code (zip)](https://github.com/Vishwajeetsrk/Vishwajeet-Team/archive/refs/tags/v0.6.0.zip) · [Source code (tar.gz)](https://github.com/Vishwajeetsrk/Vishwajeet-Team/archive/refs/tags/v0.6.0.tar.gz)
+[Source code (zip)](https://github.com/Vishwajeetsrk/Team/archive/refs/tags/v0.7.0.zip) · [Source code (tar.gz)](https://github.com/Vishwajeetsrk/Team/archive/refs/tags/v0.7.0.tar.gz)
 
 ---
 

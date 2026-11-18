@@ -8,10 +8,10 @@
 
 <p>
   <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-F4D35E.svg?style=flat-square&labelColor=6E1423"></a>
-  <a href="./CHANGELOG.md"><img alt="Version: 0.6.0" src="https://img.shields.io/badge/version-0.6.0-F4D35E.svg?style=flat-square&labelColor=6E1423"></a>
+  <a href="./CHANGELOG.md"><img alt="Version: 0.7.0" src="https://img.shields.io/badge/version-0.7.0-F4D35E.svg?style=flat-square&labelColor=6E1423"></a>
   <img alt="Platform: macOS | Windows | Linux" src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-F4F1EA.svg?style=flat-square&labelColor=6E1423">
   <img alt="Pricing: 100% Free" src="https://img.shields.io/badge/pricing-100%25%20Free%20forever-F4D35E.svg?style=flat-square&labelColor=6E1423">
-  <a href="https://github.com/Vishwajeetsrk/Vishwajeet-Team/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/Vishwajeetsrk/Vishwajeet-Team/total?style=flat-square&label=downloads&color=F4D35E&labelColor=6E1423"></a>
+  <a href="https://github.com/Vishwajeetsrk/Team/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/Vishwajeetsrk/Team/total?style=flat-square&label=downloads&color=F4D35E&labelColor=6E1423"></a>
   <img alt="Status: stable" src="https://img.shields.io/badge/status-stable-F4F1EA.svg?style=flat-square&labelColor=6E1423">
 </p>
 
@@ -45,16 +45,16 @@ visualized as avatars at work on a shared office floor.
   <sub>▶ Vishwajeet Team — 1080p 60fps video walkthrough</sub>
 </div>
 
-### ⬇ Downloads & Installers (v0.6.0)
+### ⬇ Downloads & Installers (v0.7.0)
 
 | Platform | Format | Direct Download |
 |:---|:---|:---|
-| 🍏 **macOS** | Universal DMG (Apple Silicon + Intel) | [macOS Universal DMG](https://github.com/Vishwajeetsrk/Vishwajeet-Team/releases/download/v0.6.0/Vishwajeet-Team-0.6.0-mac-universal.dmg) |
-| 🪟 **Windows** | Setup Installer (x64) | [Windows x64 Setup Installer](https://github.com/Vishwajeetsrk/Vishwajeet-Team/releases/download/v0.6.0/Vishwajeet-Team-0.6.0-win-x64-setup.exe) |
-| 🪟 **Windows** | Portable (.exe, no install) | [Windows x64 Portable (.exe)](https://github.com/Vishwajeetsrk/Vishwajeet-Team/releases/download/v0.6.0/Vishwajeet-Team-0.6.0-win-x64-portable.exe) |
-| 🐧 **Linux** | AppImage (x86_64) | [Linux AppImage](https://github.com/Vishwajeetsrk/Vishwajeet-Team/releases/download/v0.6.0/Vishwajeet-Team-0.6.0-linux-x86_64.AppImage) |
+| 🍏 **macOS** | Universal DMG (Apple Silicon + Intel) | [macOS Universal DMG](https://github.com/Vishwajeetsrk/Team/releases/download/v0.7.0/Vishwajeet-Team-0.7.0-mac-universal.dmg) |
+| 🪟 **Windows** | Setup Installer (x64) | [Windows x64 Setup Installer](https://github.com/Vishwajeetsrk/Team/releases/download/v0.7.0/Vishwajeet-Team-0.7.0-win-x64-setup.exe) |
+| 🪟 **Windows** | Portable (.exe, no install) | [Windows x64 Portable (.exe)](https://github.com/Vishwajeetsrk/Team/releases/download/v0.7.0/Vishwajeet-Team-0.7.0-win-x64-portable.exe) |
+| 🐧 **Linux** | AppImage (x86_64) | [Linux AppImage](https://github.com/Vishwajeetsrk/Team/releases/download/v0.7.0/Vishwajeet-Team-0.7.0-linux-x86_64.AppImage) |
 
-<sub>100% Free · Local-First · No Account · No Paywall · [All Release Assets & Checksums](https://github.com/Vishwajeetsrk/Vishwajeet-Team/releases/tag/v0.6.0)</sub>
+<sub>100% Free · Local-First · No Account · No Paywall · [All Release Assets & Checksums](https://github.com/Vishwajeetsrk/Team/releases/tag/v0.7.0)</sub>
 
 </div>
 
@@ -348,7 +348,7 @@ Michael is your direct clone and the single agent you brief. He breaks down goal
 ### ➕ Hire an Agent in a Few Clicks
 `Multi-Model Picker` · `Custom Personas` · `Agent Gallery`
 
-Pick your provider (Claude, Grok, Codex, Gemini, DeepSeek, or local Ollama), configure the autonomy leash, assign a desk, and work begins. Import roles directly from the [Agent Gallery](https://github.com/Vishwajeetsrk/Vishwajeet-Team/tree/main/docs/hires).
+Pick your provider (Claude, Grok, Codex, Gemini, DeepSeek, or local Ollama), configure the autonomy leash, assign a desk, and work begins. Import roles directly from the [Agent Gallery](https://github.com/Vishwajeetsrk/Team/tree/main/docs/hires).
 
 > *Instant spawn with preconfigured system prompts, tools, and skills.*
 
@@ -554,7 +554,7 @@ The onboarding wizard automatically audits your local environment (Node, Git, Py
 - **Your language**: English, Simplified Chinese and Arabic, with right to left layout for Arabic. All three app fonts ship inside the bundle, so nothing is fetched at boot.
 
 > [!NOTE]
-> **Status: v0.6.0 — local-first, no account, no paywall.**
+> **Status: v0.7.0 — local-first, no account, no paywall.**
 > Everything runs on your machine — agents, memory, triggers,
 > integrations, skills. Updates never apply unless you turn them on in
 > Settings → General.
@@ -566,7 +566,7 @@ The onboarding wizard automatically audits your local environment (Node, Git, Py
 ### Download the app
 
 **Most people want this one.** This fork is free and local-first: no account, no paywall.
-Grab a build from the [releases page](https://github.com/Vishwajeetsrk/Vishwajeet-Team/releases/latest),
+Grab a build from the [releases page](https://github.com/Vishwajeetsrk/Team/releases/latest),
 open it, and the wizard takes you the rest of the way. You do not need Node, a toolchain, or this
 repository.
 
@@ -604,7 +604,7 @@ Everything below is for developers and for people who want to run an unreleased 
 ### Install & run
 
 ```bash
-git clone https://github.com/Vishwajeetsrk/Vishwajeet-Team.git
+git clone https://github.com/Vishwajeetsrk/Team.git
 cd Vishwajeet-Team
 npm install        # postinstall rebuilds node-pty against Electron's ABI
 npm run dev        # launches the Electron app with hot reload
@@ -675,7 +675,7 @@ first areas: wiring real hook events, the add-agent flow, the config drawer, and
 > just changes what the evidence looks like. See
 > [Evidence is mandatory](./CONTRIBUTING.md#evidence-is-mandatory).
 
-Questions or bugs? Open an issue: **<https://github.com/Vishwajeetsrk/Vishwajeet-Team/issues>**
+Questions or bugs? Open an issue: **<https://github.com/Vishwajeetsrk/Team/issues>**
 
 **Looking for somewhere to start?** Browse the open issues — small, self-contained
 work with a clear finish line is marked for newcomers.
